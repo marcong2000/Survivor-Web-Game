@@ -21,6 +21,22 @@ describe("weaponStatsAtLevel", () => {
   });
 });
 
+describe("orbit count thresholds", () => {
+  it("adds a ward only at levels 3, 5, 7, 9 (not every level)", () => {
+    const counts = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(
+      (lvl) => weaponStatsAtLevel(WEAPONS.orbit, lvl).count,
+    );
+    // base 2; +1 at 3,5,7,9 → no growth at 2/4/6/8/10
+    expect(counts).toEqual([2, 2, 3, 3, 4, 4, 5, 5, 6, 6]);
+  });
+
+  it("still increases damage every level", () => {
+    const d1 = weaponStatsAtLevel(WEAPONS.orbit, 1).damage;
+    const d2 = weaponStatsAtLevel(WEAPONS.orbit, 2).damage;
+    expect(d2).toBeGreaterThan(d1); // +3 per level even when count is unchanged
+  });
+});
+
 describe("applyEvolution", () => {
   it("applies multiplicative then additive transforms", () => {
     const lv10 = weaponStatsAtLevel(WEAPONS.bolt, 10);
@@ -45,7 +61,7 @@ describe("applyEvolution", () => {
 describe("weapon catalogue", () => {
   it("every weapon declares a behavior", () => {
     for (const def of Object.values(WEAPONS)) {
-      expect(["projectile", "boomerang", "aura"]).toContain(def.behavior);
+      expect(["projectile", "boomerang", "aura", "orbit"]).toContain(def.behavior);
     }
   });
 

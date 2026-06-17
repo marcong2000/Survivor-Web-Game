@@ -79,8 +79,9 @@ export interface WeaponStats {
  * - `projectile` — fires straight shot(s) that travel and (optionally) pierce.
  * - `boomerang`  — flies out and returns; its evolution ricochets between enemies.
  * - `aura`       — a persistent damaging field around the player that ticks.
+ * - `orbit`      — projectiles that perpetually circle the player.
  */
-export type WeaponBehavior = "projectile" | "boomerang" | "aura";
+export type WeaponBehavior = "projectile" | "boomerang" | "aura" | "orbit";
 
 /**
  * A weapon's level-10 evolution — the "crazy upgrade" applied when an owned,
@@ -109,6 +110,12 @@ export interface WeaponDef {
   perLevelStats: Partial<WeaponStats>;
   maxLevel: number;
   behavior: WeaponBehavior;
+  /**
+   * Levels at which `count` increases by 1 (on top of base/per-level count).
+   * Lets a weapon grow other stats every level but add projectiles only at
+   * specific milestones (e.g. orbit weapons at levels 3, 5, 7, 9).
+   */
+  countThresholds?: number[];
   /** Optional level-10 evolution (the only source of Legendary upgrades). */
   evolution?: WeaponEvolution;
 }

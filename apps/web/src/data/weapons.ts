@@ -67,6 +67,23 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
       ricochetBounces: 5,
     },
   },
+  orbit: {
+    id: "orbit",
+    name: "Orbiting Wards",
+    description: "Wards that perpetually circle you, damaging whatever they touch.",
+    behavior: "orbit",
+    // count starts at 2 and rises only at levels 3/5/7/9; damage grows each level.
+    baseStats: { damage: 9, cooldown: 0.25, projectileSpeed: 2.6, range: 95, count: 2, pierce: 0 },
+    perLevelStats: { damage: 3, range: 3 },
+    countThresholds: [3, 5, 7, 9],
+    maxLevel: 10,
+    evolution: {
+      name: "Astral Halo",
+      description: "A blazing halo — +2 wards, a wider orbit, and nearly double damage.",
+      mult: { damage: 1.9, range: 1.3 },
+      add: { count: 2 },
+    },
+  },
   aura: {
     id: "aura",
     name: "Pulse Aura",
@@ -85,14 +102,16 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
 
 /** Resolve the effective stats of a weapon at a given level (1-based). */
 export function weaponStatsAtLevel(def: WeaponDef, level: number): WeaponStats {
-  const steps = Math.max(0, Math.min(level, def.maxLevel) - 1);
+  const clamped = Math.min(level, def.maxLevel);
+  const steps = Math.max(0, clamped - 1);
   const s = def.perLevelStats;
+  const thresholdCount = def.countThresholds?.filter((t) => clamped >= t).length ?? 0;
   return {
     damage: def.baseStats.damage + (s.damage ?? 0) * steps,
     cooldown: Math.max(0.08, def.baseStats.cooldown + (s.cooldown ?? 0) * steps),
     projectileSpeed: def.baseStats.projectileSpeed + (s.projectileSpeed ?? 0) * steps,
     range: def.baseStats.range + (s.range ?? 0) * steps,
-    count: def.baseStats.count + (s.count ?? 0) * steps,
+    count: def.baseStats.count + (s.count ?? 0) * steps + thresholdCount,
     pierce: def.baseStats.pierce + (s.pierce ?? 0) * steps,
   };
 }

@@ -218,6 +218,7 @@ Weapons are data-driven (`apps/web/src/data/weapons.ts`) and now span three **be
 | Scatter Shards | projectile | 1 | *Shard Nova* — +4 shards, +50% damage, faster |
 | Piercing Lance | projectile | 3 | *Spear of Ruin* — ×2.2 damage, pierces a whole crowd |
 | Boomerang | boomerang | — | *Ricochet* (**behavioral**) — bounces between up to 5 nearby enemies |
+| Orbiting Wards | orbit | — | *Astral Halo* — +2 wards, wider orbit, ~×1.9 damage |
 | Pulse Aura | aura | — | *Nova Field* — far larger radius, faster pulses, ×2 damage |
 
 - **projectile** — straight shot(s) that travel and pierce up to `pierce` enemies (`pierce` is a
@@ -227,6 +228,10 @@ Weapons are data-driven (`apps/web/src/data/weapons.ts`) and now span three **be
   to the nearest not-yet-hit enemy**, up to 5 bounces (prioritizing un-bounced targets).
 - **aura** — a persistent field around the player that pulses every `cooldown`, damaging all enemies
   within `range` (an AOE / melee archetype; rendered as a translucent ring that flashes on pulse).
+- **orbit** — wards that perpetually circle the player, damaging enemies they touch (re-hitting the
+  same enemy on a short interval). Damage rises **every** level, but the **number of wards only grows
+  at levels 3/5/7/9** via the weapon's `countThresholds` (base 2 → 6 at Lv 9). Wards are repositioned
+  on their circle each frame; they don't fire on a cooldown.
 
 Implementation: `WeaponBehavior` + `pierce` on `WeaponStats`, and `ricochetBounces` on
 `WeaponEvolution` (`packages/shared`); per-behavior firing, projectile pierce/hit-tracking, boomerang

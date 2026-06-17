@@ -17,6 +17,7 @@ export class BootScene extends Phaser.Scene {
     this.makeCircleTexture("enemy", 12, 0xe5534b);
     this.makeCircleTexture("boss", 36, 0xb267e6);
     this.makeCircleTexture("projectile", 5, 0xffe066);
+    this.makeCircleTexture("orbital", 7, 0x9be15e);
     this.makeRingTexture("boomerang", 9, 0xffa53c);
     this.makeGemTexture("gem", 8, 0x4be8d0);
 

@@ -38,6 +38,7 @@ export class GameScene extends Phaser.Scene {
   private enemyId = 0;
   private auraGfx?: Phaser.GameObjects.Arc;
   private auraFlash = 0;
+  private orbitOrbs = new Map<WeaponId, Sprite[]>();
 
   private xp = 0;
   private level = 1;
@@ -124,6 +125,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyId = 0;
     this.auraFlash = 0;
     this.auraGfx = undefined;
+    this.orbitOrbs.clear();
     this.xp = 0;
     this.level = 1;
     this.xpToNext = 8;
@@ -191,6 +193,12 @@ export class GameScene extends Phaser.Scene {
 
       if (def.behavior === "aura") auraRadius = Math.max(auraRadius, stats.range);
 
+      // Orbit wards persist and circle the player — no cooldown firing.
+      if (def.behavior === "orbit") {
+        this.maintainOrbit(weaponId, stats);
+        continue;
+      }
+
       const remaining = (this.weaponCooldowns.get(weaponId) ?? 0) - dt;
       if (remaining > 0) {
         this.weaponCooldowns.set(weaponId, remaining);
@@ -212,6 +220,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.updateAuraVisual(auraRadius);
+    this.updateOrbits();
   }
 
   /** Direction to fire, governed by the persistent aim mode. */
@@ -335,11 +344,64 @@ export class GameScene extends Phaser.Scene {
     this.auraGfx.setFillStyle(0x57b9ff, this.auraFlash > 0 ? 0.28 : 0.1);
   }
 
+  /** Ensure the right number of orbiting wards exist, with current stats. */
+  private maintainOrbit(weaponId: WeaponId, stats: WeaponStats) {
+    const desired = Math.max(1, Math.round(stats.count));
+    let orbs = this.orbitOrbs.get(weaponId);
+    if (!orbs) {
+      orbs = [];
+      this.orbitOrbs.set(weaponId, orbs);
+    }
+
+    if (orbs.length !== desired) {
+      for (const o of orbs) this.despawn(o);
+      orbs.length = 0;
+      for (let i = 0; i < desired; i++) {
+        const orb = this.spawnProjectile("orbital");
+        if (!orb) continue;
+        orb.setDepth(7);
+        orb.setData("behavior", "orbit");
+        orb.setData("weapon", weaponId);
+        orb.setData("hitCd", new Map<number, number>());
+        orbs.push(orb);
+      }
+    }
+
+    const damage = stats.damage * this.stats.attack;
+    orbs.forEach((orb, i) => {
+      orb.setData("damage", damage);
+      orb.setData("radius", stats.range);
+      orb.setData("angularSpeed", stats.projectileSpeed);
+      orb.setData("hitInterval", stats.cooldown);
+      orb.setData("index", i);
+      orb.setData("total", orbs.length);
+    });
+  }
+
+  /** Position every ward on its circle around the player each frame. */
+  private updateOrbits() {
+    for (const orbs of this.orbitOrbs.values()) {
+      for (const orb of orbs) {
+        if (!orb.active) continue;
+        const idx = orb.getData("index") as number;
+        const total = orb.getData("total") as number;
+        const radius = orb.getData("radius") as number;
+        const angularSpeed = orb.getData("angularSpeed") as number;
+        const angle = this.elapsed * angularSpeed + (idx / total) * Math.PI * 2;
+        const x = this.player.x + Math.cos(angle) * radius;
+        const y = this.player.y + Math.sin(angle) * radius;
+        (orb.body as Phaser.Physics.Arcade.Body).reset(x, y);
+      }
+    }
+  }
+
   private updateProjectiles(dt: number) {
     for (const obj of this.projectiles.getChildren()) {
       const proj = obj as Sprite;
       if (!proj.active) continue;
-      if ((proj.getData("behavior") as string) === "boomerang") {
+      const behavior = proj.getData("behavior") as string;
+      if (behavior === "orbit") continue; // positioned by updateOrbits
+      if (behavior === "boomerang") {
         this.updateBoomerang(proj, dt);
         continue;
       }
@@ -469,9 +531,19 @@ export class GameScene extends Phaser.Scene {
     const enemy = enemyObj as Sprite;
     if (!proj.active || !enemy.active) return;
 
+    const eid = enemy.getData("eid") as number;
+
+    // Orbit wards re-hit the same enemy on an interval rather than once.
+    if ((proj.getData("behavior") as string) === "orbit") {
+      const cd = proj.getData("hitCd") as Map<number, number>;
+      if (this.elapsed < (cd.get(eid) ?? 0)) return;
+      cd.set(eid, this.elapsed + (proj.getData("hitInterval") as number));
+      this.damageEnemy(enemy, proj.getData("damage") as number);
+      return;
+    }
+
     // Each projectile only damages a given enemy once (per leg, for boomerangs).
     const hit = proj.getData("hit") as Set<number> | undefined;
-    const eid = enemy.getData("eid") as number;
     if (hit) {
       if (hit.has(eid)) return;
       hit.add(eid);
