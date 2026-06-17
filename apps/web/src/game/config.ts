@@ -5,7 +5,7 @@ import type { RunConfig } from "./types.js";
 
 export const GAME_WIDTH = 960;
 export const GAME_HEIGHT = 600;
-export const WORLD_SIZE = 2400;
+export const WORLD_SIZE = 3120;
 
 /** Registry key the BootScene reads to learn how to start the run. */
 export const RUN_CONFIG_KEY = "runConfig";
