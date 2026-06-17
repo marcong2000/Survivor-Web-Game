@@ -162,6 +162,21 @@ interface SaveData {
 }
 ```
 
+### 3.7 GM / test mode (developer tooling) — implemented
+
+A **GM (Game Master) mode** for fast, targeted testing. Reached from a **GM Mode (test)** button on
+the main menu, it opens a setup screen where you hand-pick a full loadout before launching a run:
+
+- **Character stats** — Max HP, Attack, Move Speed, Pickup Radius, XP Gain, plus the starting player
+  level.
+- **Weapons** — tick any subset of the weapon catalogue and set each one's level (1..maxLevel).
+- **Run options** — game mode (Normal / Unlimited) and aim mode (Assisted / Manual) overrides.
+
+Implementation: an optional `gm: GmLoadout` field on `RunConfig` (`apps/web/src/game/types.ts`).
+When present, `GameScene.create` skips the character defaults and starts the run with exactly the
+chosen stats, weapons, levels, and player level. The setup UI lives in `apps/web/src/ui/GmSetup.tsx`.
+This is a developer/testing tool and is not part of the meta-progression or save data.
+
 ---
 
 ## 4. Implementation Roadmap (phased)

@@ -179,6 +179,98 @@ button {
   color: var(--subtle);
 }
 
+/* --- GM mode --- */
+
+.gm-screen {
+  width: min(820px, 94vw);
+}
+
+.gm-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.gm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--subtle);
+}
+
+.gm-field input,
+.gm-field select {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-light);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.gm-weapons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.gm-weapon {
+  text-align: left;
+  padding: 14px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background: var(--panel-light);
+  opacity: 0.6;
+}
+
+.gm-weapon.on {
+  opacity: 1;
+  border-color: var(--accent);
+}
+
+.gm-weapon-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.gm-weapon-level {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--subtle);
+}
+
+.gm-weapon-level input {
+  width: 64px;
+  font: inherit;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--bg);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.gm-weapon-desc {
+  margin: 0;
+  font-size: 12px;
+  color: var(--subtle);
+}
+
+.gm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
 /* --- Game view --- */
 
 .game-view {

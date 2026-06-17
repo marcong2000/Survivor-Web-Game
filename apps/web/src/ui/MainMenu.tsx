@@ -4,9 +4,11 @@ import { useSave } from "../save/SaveContext.js";
 export function MainMenu({
   onPlay,
   onSettings,
+  onGmMode,
 }: {
   onPlay: (mode: GameMode) => void;
   onSettings: () => void;
+  onGmMode: () => void;
 }) {
   const { save } = useSave();
   if (!save) return null;
@@ -31,6 +33,9 @@ export function MainMenu({
         </button>
         <button className="secondary" onClick={onSettings}>
           Settings
+        </button>
+        <button className="secondary" onClick={onGmMode}>
+          GM Mode (test)
         </button>
       </div>
 

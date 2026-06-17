@@ -5,10 +5,11 @@ import { DEFAULT_MAP_ID } from "./data/maps.js";
 import type { RunConfig } from "./game/types.js";
 import { useSave } from "./save/SaveContext.js";
 import { GameView } from "./ui/GameView.js";
+import { GmSetup } from "./ui/GmSetup.js";
 import { MainMenu } from "./ui/MainMenu.js";
 import { Settings } from "./ui/Settings.js";
 
-type Screen = "menu" | "settings" | "playing";
+type Screen = "menu" | "settings" | "gm" | "playing";
 
 export function App() {
   const { save, loading } = useSave();
@@ -45,5 +46,23 @@ export function App() {
     return <Settings onBack={() => setScreen("menu")} />;
   }
 
-  return <MainMenu onPlay={startRun} onSettings={() => setScreen("settings")} />;
+  if (screen === "gm") {
+    return (
+      <GmSetup
+        onStart={(config) => {
+          setRunConfig(config);
+          setScreen("playing");
+        }}
+        onBack={() => setScreen("menu")}
+      />
+    );
+  }
+
+  return (
+    <MainMenu
+      onPlay={startRun}
+      onSettings={() => setScreen("settings")}
+      onGmMode={() => setScreen("gm")}
+    />
+  );
 }

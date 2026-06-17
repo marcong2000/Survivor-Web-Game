@@ -58,11 +58,27 @@ export class GameScene extends Phaser.Scene {
     this.resetState();
 
     const character = CHARACTERS[cfg.characterId] ?? Object.values(CHARACTERS)[0];
-    this.stats = { ...character.startStats };
+
+    if (cfg.gm) {
+      // GM/test mode: start with the hand-picked loadout instead of defaults.
+      this.stats = { ...cfg.gm.stats };
+      this.level = Math.max(1, Math.floor(cfg.gm.startLevel));
+      this.xpToNext = Math.floor(8 + (this.level - 1) * 5 + Math.pow(this.level, 1.3));
+      const picks = cfg.gm.weapons.filter((w) => WEAPONS[w.weaponId]);
+      if (picks.length === 0) picks.push({ weaponId: character.startWeaponId, level: 1 });
+      for (const w of picks) {
+        const def = WEAPONS[w.weaponId];
+        this.ownedWeapons.set(w.weaponId, Phaser.Math.Clamp(Math.floor(w.level), 1, def.maxLevel));
+        this.weaponCooldowns.set(w.weaponId, 0);
+      }
+    } else {
+      this.stats = { ...character.startStats };
+      this.ownedWeapons.set(character.startWeaponId, 1);
+      this.weaponCooldowns.set(character.startWeaponId, 0);
+    }
+
     this.maxHp = this.stats.maxHp;
     this.hp = this.maxHp;
-    this.ownedWeapons.set(character.startWeaponId, 1);
-    this.weaponCooldowns.set(character.startWeaponId, 0);
 
     this.physics.world.setBounds(0, 0, WORLD_SIZE, WORLD_SIZE);
     this.cameras.main.setBounds(0, 0, WORLD_SIZE, WORLD_SIZE);
