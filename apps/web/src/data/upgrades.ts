@@ -39,15 +39,20 @@ export function rarityWeights(luck: number): Record<Rarity, number> {
   };
 }
 
-function rollRarity(luck: number): Rarity {
+/**
+ * Roll a rarity, considering only tiers up to `maxTier`. Stat boosts and normal
+ * weapon upgrades cap at "epic"; Legendary is reserved for weapon evolutions.
+ */
+function rollRarity(luck: number, maxTier: Rarity = "epic"): Rarity {
   const weights = rarityWeights(luck);
-  const total = RARITY_ORDER.reduce((sum, r) => sum + weights[r], 0);
+  const tiers = RARITY_ORDER.slice(0, RARITY_ORDER.indexOf(maxTier) + 1);
+  const total = tiers.reduce((sum, r) => sum + weights[r], 0);
   let roll = Math.random() * total;
-  for (const r of RARITY_ORDER) {
+  for (const r of tiers) {
     roll -= weights[r];
     if (roll < 0) return r;
   }
-  return "normal";
+  return tiers[0];
 }
 
 // ---------------------------------------------------------------------------
@@ -101,12 +106,14 @@ function statDescription(def: StatBoostDef, rarity: Rarity): string {
 export type UpgradeOption =
   | { kind: "new-weapon"; id: string; rarity: Rarity; weaponId: WeaponId; name: string; description: string; toLevel: number }
   | { kind: "level-weapon"; id: string; rarity: Rarity; weaponId: WeaponId; name: string; description: string; toLevel: number }
+  | { kind: "evolve-weapon"; id: string; rarity: Rarity; weaponId: WeaponId; name: string; description: string }
   | { kind: "stat"; id: string; rarity: Rarity; stat: StatBoost; name: string; description: string };
 
 /** The distinct base choices available, before a rarity is rolled for each. */
 type BaseChoice =
   | { kind: "new-weapon"; id: string; weaponId: WeaponId }
   | { kind: "level-weapon"; id: string; weaponId: WeaponId; level: number }
+  | { kind: "evolve-weapon"; id: string; weaponId: WeaponId }
   | { kind: "stat"; id: string; def: StatBoostDef };
 
 /** Fisher-Yates shuffle (non-mutating). */
@@ -120,9 +127,9 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 function buildOption(choice: BaseChoice, luck: number): UpgradeOption {
-  const rarity = rollRarity(luck);
   switch (choice.kind) {
     case "new-weapon": {
+      const rarity = rollRarity(luck, "epic");
       const def = WEAPONS[choice.weaponId];
       const toLevel = Math.min(def.maxLevel, RARITY[rarity].weaponLevels);
       return {
@@ -136,6 +143,7 @@ function buildOption(choice: BaseChoice, luck: number): UpgradeOption {
       };
     }
     case "level-weapon": {
+      const rarity = rollRarity(luck, "epic");
       const def = WEAPONS[choice.weaponId];
       const toLevel = Math.min(def.maxLevel, choice.level + RARITY[rarity].weaponLevels);
       return {
@@ -148,7 +156,21 @@ function buildOption(choice: BaseChoice, luck: number): UpgradeOption {
         toLevel,
       };
     }
-    case "stat":
+    case "evolve-weapon": {
+      // Evolutions are always Legendary — the only source of that tier.
+      const def = WEAPONS[choice.weaponId];
+      const evo = def.evolution!;
+      return {
+        kind: "evolve-weapon",
+        id: choice.id,
+        rarity: "legendary",
+        weaponId: choice.weaponId,
+        name: `Evolve: ${evo.name}`,
+        description: evo.description,
+      };
+    }
+    case "stat": {
+      const rarity = rollRarity(luck, "epic");
       return {
         kind: "stat",
         id: choice.id,
@@ -157,6 +179,7 @@ function buildOption(choice: BaseChoice, luck: number): UpgradeOption {
         name: choice.def.name,
         description: statDescription(choice.def, rarity),
       };
+    }
   }
 }
 
@@ -166,6 +189,7 @@ function buildOption(choice: BaseChoice, luck: number): UpgradeOption {
  */
 export function rollUpgrades(
   ownedWeapons: ReadonlyMap<WeaponId, number>,
+  evolvedWeapons: ReadonlySet<WeaponId> = new Set(),
   luck = 0,
   count = 3,
 ): UpgradeOption[] {
@@ -177,6 +201,9 @@ export function rollUpgrades(
       pool.push({ kind: "new-weapon", id: `new:${def.id}`, weaponId: def.id });
     } else if (level < def.maxLevel) {
       pool.push({ kind: "level-weapon", id: `lvl:${def.id}`, weaponId: def.id, level });
+    } else if (def.evolution && !evolvedWeapons.has(def.id)) {
+      // Maxed (Lv 10) and not yet evolved: offer the Legendary evolution.
+      pool.push({ kind: "evolve-weapon", id: `evo:${def.id}`, weaponId: def.id });
     }
   }
 

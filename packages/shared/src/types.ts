@@ -72,6 +72,18 @@ export interface WeaponStats {
   count: number;
 }
 
+/**
+ * A weapon's level-10 evolution — the "crazy upgrade" applied when an owned,
+ * maxed weapon is evolved. Transforms are multiplicative (`mult`) and/or
+ * additive (`add`) on the level-10 stats.
+ */
+export interface WeaponEvolution {
+  name: string;
+  description: string;
+  mult?: Partial<WeaponStats>;
+  add?: Partial<WeaponStats>;
+}
+
 export interface WeaponDef {
   id: WeaponId;
   name: string;
@@ -81,6 +93,8 @@ export interface WeaponDef {
   /** Additive deltas applied per level above 1 (levels 2..maxLevel). */
   perLevelStats: Partial<WeaponStats>;
   maxLevel: number;
+  /** Optional level-10 evolution (the only source of Legendary upgrades). */
+  evolution?: WeaponEvolution;
 }
 
 export interface CharacterDef {

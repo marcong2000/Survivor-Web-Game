@@ -13,6 +13,12 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     baseStats: { damage: 10, cooldown: 0.6, projectileSpeed: 480, range: 420, count: 1 },
     perLevelStats: { damage: 4, cooldown: -0.03, count: 0 },
     maxLevel: 10,
+    evolution: {
+      name: "Bolt Storm",
+      description: "Unleashes a storm — fires 3 bolts at once, each hitting twice as hard.",
+      mult: { damage: 2, cooldown: 0.7 },
+      add: { count: 2 },
+    },
   },
   spread: {
     id: "spread",
@@ -21,6 +27,12 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     baseStats: { damage: 6, cooldown: 1.1, projectileSpeed: 360, range: 320, count: 3 },
     perLevelStats: { damage: 2, cooldown: -0.04, count: 0 },
     maxLevel: 10,
+    evolution: {
+      name: "Shard Nova",
+      description: "Erupts in a nova — +4 shards, +50% damage, and a much faster cadence.",
+      mult: { damage: 1.5, cooldown: 0.6 },
+      add: { count: 4 },
+    },
   },
 };
 
@@ -35,4 +47,20 @@ export function weaponStatsAtLevel(def: WeaponDef, level: number): WeaponStats {
     range: def.baseStats.range + (s.range ?? 0) * steps,
     count: def.baseStats.count + (s.count ?? 0) * steps,
   };
+}
+
+/** Apply a weapon's evolution transform (multiplicative then additive). */
+export function applyEvolution(stats: WeaponStats, def: WeaponDef): WeaponStats {
+  const evo = def.evolution;
+  if (!evo) return stats;
+  const mult = evo.mult ?? {};
+  const add = evo.add ?? {};
+  const out: WeaponStats = {
+    damage: stats.damage * (mult.damage ?? 1) + (add.damage ?? 0),
+    cooldown: Math.max(0.08, stats.cooldown * (mult.cooldown ?? 1) + (add.cooldown ?? 0)),
+    projectileSpeed: stats.projectileSpeed * (mult.projectileSpeed ?? 1) + (add.projectileSpeed ?? 0),
+    range: stats.range * (mult.range ?? 1) + (add.range ?? 0),
+    count: stats.count * (mult.count ?? 1) + (add.count ?? 0),
+  };
+  return out;
 }

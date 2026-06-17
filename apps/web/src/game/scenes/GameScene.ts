@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import type { PlayerStats, WeaponId } from "@survivor/shared";
 import { CHARACTERS } from "../../data/characters.js";
 import { MAPS } from "../../data/maps.js";
-import { WEAPONS, weaponStatsAtLevel } from "../../data/weapons.js";
+import { applyEvolution, WEAPONS, weaponStatsAtLevel } from "../../data/weapons.js";
 import { rollUpgrades, statBoostAmount, type UpgradeOption } from "../../data/upgrades.js";
 import { gameBus } from "../GameBus.js";
 import { GAME_HEIGHT, GAME_WIDTH, WORLD_SIZE } from "../config.js";
@@ -33,6 +33,7 @@ export class GameScene extends Phaser.Scene {
 
   private ownedWeapons = new Map<WeaponId, number>();
   private weaponCooldowns = new Map<WeaponId, number>();
+  private evolvedWeapons = new Set<WeaponId>();
 
   private xp = 0;
   private level = 1;
@@ -115,6 +116,7 @@ export class GameScene extends Phaser.Scene {
     this.maxHp = 0;
     this.ownedWeapons.clear();
     this.weaponCooldowns.clear();
+    this.evolvedWeapons.clear();
     this.xp = 0;
     this.level = 1;
     this.xpToNext = 8;
@@ -173,7 +175,8 @@ export class GameScene extends Phaser.Scene {
     for (const [weaponId, level] of this.ownedWeapons) {
       const def = WEAPONS[weaponId];
       if (!def) continue;
-      const stats = weaponStatsAtLevel(def, level);
+      let stats = weaponStatsAtLevel(def, level);
+      if (this.evolvedWeapons.has(weaponId)) stats = applyEvolution(stats, def);
       const remaining = (this.weaponCooldowns.get(weaponId) ?? 0) - dt;
       if (remaining <= 0) {
         this.fireWeapon(weaponId, stats.damage, stats.projectileSpeed, stats.range, stats.count);
@@ -407,7 +410,7 @@ export class GameScene extends Phaser.Scene {
     this.running = false;
     this.physics.pause();
     this.hp = this.maxHp; // leveling up fully heals the player
-    this.pendingOptions = rollUpgrades(this.ownedWeapons, this.stats.luck, 3);
+    this.pendingOptions = rollUpgrades(this.ownedWeapons, this.evolvedWeapons, this.stats.luck, 3);
     this.emitHud();
     gameBus.emitTyped("levelup", { level: this.level, options: this.pendingOptions });
   }
@@ -439,6 +442,9 @@ export class GameScene extends Phaser.Scene {
         break;
       case "level-weapon":
         this.ownedWeapons.set(option.weaponId, option.toLevel);
+        break;
+      case "evolve-weapon":
+        this.evolvedWeapons.add(option.weaponId);
         break;
       case "stat": {
         const delta = statBoostAmount(option.stat, option.rarity, this.stats[option.stat]);

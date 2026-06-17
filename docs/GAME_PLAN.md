@@ -97,27 +97,33 @@ the project comfortably within Cloudflare free tiers and low-latency.
 5. Each map has a **boss**. Defeating it advances the map (Normal) or ramps difficulty (Unlimited).
 6. On death / run-end, the run awards **points → gold + rune points** for meta-progression.
 
-### 3.2a Level-up upgrades, rarity & luck — implemented
+### 3.2a Level-up upgrades, rarity, luck & evolution — implemented
 Each of the three level-up choices independently rolls a **rarity** that scales its strength:
 
-| Rarity | Stat-boost multiplier | Weapon levels granted |
-|--------|----------------------|-----------------------|
-| Normal | ×1.0 | +1 |
-| Rare | ×1.6 | +2 |
-| Epic | ×2.5 | +3 |
-| Legendary | ×4.0 | +5 (capped at Lv 10) |
+| Rarity | Stat-boost multiplier | Weapon levels granted | Where it can appear |
+|--------|----------------------|-----------------------|---------------------|
+| Normal | ×1.0 | +1 | stat boosts, weapon upgrades |
+| Rare | ×1.6 | +2 | stat boosts, weapon upgrades |
+| Epic | ×2.5 | +3 | stat boosts, weapon upgrades |
+| Legendary | — | — | **only weapon evolutions** (Lv-10 weapons) |
 
 - **Stat boosts available:** Vitality (+Max HP), Swiftness (+% Move Speed), Magnet (+Pickup Radius),
-  Might (+% Attack), **Wisdom (+% XP Gain)**.
-- **Luck stat** biases the rarity roll toward higher tiers. Weights ≈ `normal 100`,
-  `rare 22 + 6·luck`, `epic 7 + 3.5·luck`, `legendary 1.2 + 1.2·luck` (normal is fixed, so its share
-  shrinks as luck rises). At luck 0, odds are roughly 74% / 18% / 6% / 1%.
+  Might (+% Attack), **Wisdom (+% XP Gain)**. Stat boosts and ordinary weapon upgrades **cap at Epic**.
+- **Legendary = weapon evolution.** Legendary never appears on stat boosts. It is reserved for the
+  **"crazy upgrade"** offered only when a weapon reaches **Level 10** (and hasn't evolved yet). Each
+  weapon defines an `evolution` (e.g. Magic Bolt → *Bolt Storm*: 3 bolts, ×2 damage; Scatter Shards →
+  *Shard Nova*: +4 shards, +50% damage, much faster). Evolving applies a multiplicative/additive stat
+  transform on top of the Lv-10 stats. (Full *behavioral* evolutions remain a Phase 2 expansion.)
+- **Luck stat** biases the rarity roll toward higher tiers (within the allowed cap). Weights ≈
+  `normal 100`, `rare 22 + 6·luck`, `epic 7 + 3.5·luck` (normal is fixed, so its share shrinks as
+  luck rises).
 - **Full heal:** leveling up restores the player to full HP.
 
-Implementation: `apps/web/src/data/upgrades.ts` (rarity table, luck-weighted roll, Wisdom, magnitude
-helpers); `GameScene` applies the rolled rarity/magnitude and heals on level-up; the level-up overlay
-shows each option's rarity. `luck` is part of `PlayerStats` (settable in GM mode; future meta-
-progression — gold shop / runes — can raise it).
+Implementation: `apps/web/src/data/upgrades.ts` (rarity table, luck-weighted capped roll, Wisdom,
+evolution option); `apps/web/src/data/weapons.ts` (`evolution` defs + `applyEvolution`); `GameScene`
+tracks `evolvedWeapons`, applies the transform when firing, and heals on level-up; the level-up
+overlay shows each option's rarity. `luck` is part of `PlayerStats` (settable in GM mode; future
+meta-progression — gold shop / runes — can raise it).
 
 ### 3.3 Modes
 - **Normal** — 4 maps, one boss each. Clearing all 4 wins the game. The first full clear unlocks
