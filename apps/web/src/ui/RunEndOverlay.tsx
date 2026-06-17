@@ -10,7 +10,7 @@ export function RunEndOverlay({
   return (
     <div className="overlay">
       <div className="panel runend">
-        <h2>{result.victory ? "Victory!" : "You Fell"}</h2>
+        <h2>{result.victory ? "Victory!" : "You Failed"}</h2>
         <ul className="result-list">
           <li>
             <span>Score</span>
