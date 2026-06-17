@@ -1,0 +1,19 @@
+{
+  "name": "survivor-web-game",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A Vampire-Survivors-style roguelike survival game for the browser, hosted on Cloudflare.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@survivor/web",
+    "build": "npm run build --workspace=@survivor/shared && npm run build --workspace=@survivor/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

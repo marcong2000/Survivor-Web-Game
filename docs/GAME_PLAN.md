@@ -20,6 +20,10 @@ locally and, once a player links an account, synced to the cloud so it follows t
 | Auth | **Guest-first** — play immediately, progress saved anonymously; optionally link a **Google** account later to sync |
 | Hosting | **Cloudflare** — Pages (SPA) + Worker (API) + D1 (database) |
 | Build approach | **Phased** — ship a playable MVP vertical slice first, then layer systems in |
+| Art | **CC0 / placeholder** art for the MVP (generated shapes now; swap for a free sprite pack like Kenney later) |
+| Platform | **Desktop-first** (keyboard + mouse); touch/mobile controls deferred to polish |
+| Movement | **WASD** keys |
+| Aiming | Player-selectable **Manual** (fire toward cursor) vs **Assisted** (auto-target nearest); a persistent **Settings-tab** choice, not a per-run prompt |
 
 ---
 
@@ -72,8 +76,17 @@ the project comfortably within Cloudflare free tiers and low-latency.
 
 ## 3. Game Design
 
-### 3.1 Core in-run loop
-1. Player moves; weapons attack automatically (and/or aim).
+### 3.1 Controls & aiming (desktop-first)
+- **Movement:** WASD (diagonals normalized).
+- **Aim mode** — a persistent setting chosen in the **Settings tab** (not asked per run):
+  - **Manual** — weapons fire toward the mouse cursor; the player aims.
+  - **Assisted** — the game auto-targets (nearest enemy); the player only moves. Beginner-friendly,
+    Vampire-Survivors-like.
+- Weapons fire on their own cooldown in both modes; the aim mode only changes *direction*.
+- Stored as `settings.aimMode` in the save, so it persists across sessions (and syncs with an account).
+
+### 3.2 Core in-run loop
+1. Player moves (WASD); weapons fire automatically, aimed by the chosen aim mode.
 2. Killing a monster drops **XP gems collected only when the player is within pickup radius** of the
    death location. A *pickup radius* stat draws gems in from farther away.
 3. On level-up, present **3 random upgrade choices**: level an existing weapon, or add a new weapon.
@@ -83,12 +96,12 @@ the project comfortably within Cloudflare free tiers and low-latency.
 5. Each map has a **boss**. Defeating it advances the map (Normal) or ramps difficulty (Unlimited).
 6. On death / run-end, the run awards **points → gold + rune points** for meta-progression.
 
-### 3.2 Modes
+### 3.3 Modes
 - **Normal** — 4 maps, one boss each. Clearing all 4 wins the game. The first full clear unlocks
   **Extra Difficulty**: a layer of modifiers (e.g. *start with −10 Max HP*, tougher enemies, etc.).
 - **Unlimited** — endless, ever-scaling difficulty. A pure score / farming mode that never ends.
 
-### 3.3 Meta-progression (persists across runs)
+### 3.4 Meta-progression (persists across runs)
 - **Gold shop** — permanent upgrades to *starting* stats: Max HP, Attack, Move Speed, Pickup Radius,
   XP gain, etc. Cost scales per tier.
 - **Rune tree** — points allocated across playstyle branches (e.g. **Melee / Ranged / AOE / Utility**).
@@ -99,7 +112,7 @@ the project comfortably within Cloudflare free tiers and low-latency.
   Unlocked via **achievements** (e.g. *"kill the Map 2 boss"* unlocks a character). Achievements are
   tracked in the save.
 
-### 3.4 Content model (data-driven, in `apps/web/src/data`)
+### 3.5 Content model (data-driven, in `apps/web/src/data`)
 Defining content as data (not code) lets new weapons/maps/characters be added without touching the
 engine.
 
@@ -132,7 +145,7 @@ interface MapDef {
 // plus: bosses.ts, runes.ts (tree nodes + branch bonuses), achievements.ts
 ```
 
-### 3.5 Save data shape (`packages/shared`)
+### 3.6 Save data shape (`packages/shared`)
 ```ts
 interface SaveData {
   version: number;                       // schema version, for migrations
@@ -144,7 +157,8 @@ interface SaveData {
   unlockedCharacters: string[];
   achievements: string[];
   normalCleared: boolean;                // gates Extra Difficulty
-  stats: { runs: number; bestScore: number };
+  settings: { aimMode: 'manual' | 'assisted'; masterVolume: number };
+  stats: { runs: number; bestScore: number; totalKills: number };
 }
 ```
 
@@ -159,7 +173,9 @@ interface SaveData {
 
 ### Phase 1 — MVP vertical slice (single-player, no backend)
 - One character, one map, one boss; the core survival loop.
-- Player movement, one auto-attacking weapon, enemy spawner + simple AI, collisions.
+- **WASD movement**; weapons honoring the **aim mode** (manual cursor-aim + assisted auto-aim);
+  enemy spawner + simple AI; collisions.
+- A **Settings tab** to choose and persist `aimMode`; the game reads it at run start.
 - XP gems with **proximity pickup**; level-up screen with **3 upgrade choices**.
 - Run-end screen with score → gold / rune-point award.
 - **Local-first save** in IndexedDB (no account yet). *This is the first playable milestone.*

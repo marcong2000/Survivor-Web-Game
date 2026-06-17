@@ -1,0 +1,25 @@
+node_modules/
+dist/
+build/
+.cache/
+coverage/
+*.tsbuildinfo
+
+# Vite / build outputs
+apps/web/dist/
+apps/*/dist/
+packages/*/dist/
+
+# Cloudflare / wrangler
+.wrangler/
+.dev.vars
+
+# Editor / OS
+.DS_Store
+*.log
+.vscode/
+.idea/
+
+# Env
+.env
+.env.local

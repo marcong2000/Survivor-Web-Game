@@ -1,0 +1,9 @@
+name = "survivor-worker"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+# Phase 5 will add a D1 binding here, e.g.:
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "survivor"
+# database_id = "<filled-by-wrangler>"
