@@ -183,35 +183,46 @@ function buildOption(choice: BaseChoice, luck: number): UpgradeOption {
   }
 }
 
+/** Chance, per level-up, that an eligible Lv-10 weapon's evolution is offered. */
+export const EVOLUTION_OFFER_CHANCE = 0.1;
+
 /**
  * Build the pool of valid base choices for the current run state, pick up to
  * `count` distinct ones at random, and roll a (luck-weighted) rarity for each.
+ *
+ * A maxed (Lv 10), un-evolved weapon's Legendary evolution is only *offered*
+ * with probability `evolutionChance`; otherwise it stays out of the pool that
+ * level-up and the slots fill with normal upgrades.
  */
 export function rollUpgrades(
   ownedWeapons: ReadonlyMap<WeaponId, number>,
   evolvedWeapons: ReadonlySet<WeaponId> = new Set(),
   luck = 0,
   count = 3,
+  evolutionChance = EVOLUTION_OFFER_CHANCE,
 ): UpgradeOption[] {
-  const pool: BaseChoice[] = [];
+  const normalPool: BaseChoice[] = [];
+  const evolutionChoices: BaseChoice[] = [];
 
   for (const def of Object.values(WEAPONS)) {
     const level = ownedWeapons.get(def.id);
     if (level === undefined) {
-      pool.push({ kind: "new-weapon", id: `new:${def.id}`, weaponId: def.id });
+      normalPool.push({ kind: "new-weapon", id: `new:${def.id}`, weaponId: def.id });
     } else if (level < def.maxLevel) {
-      pool.push({ kind: "level-weapon", id: `lvl:${def.id}`, weaponId: def.id, level });
+      normalPool.push({ kind: "level-weapon", id: `lvl:${def.id}`, weaponId: def.id, level });
     } else if (def.evolution && !evolvedWeapons.has(def.id)) {
-      // Maxed (Lv 10) and not yet evolved: offer the Legendary evolution.
-      pool.push({ kind: "evolve-weapon", id: `evo:${def.id}`, weaponId: def.id });
+      evolutionChoices.push({ kind: "evolve-weapon", id: `evo:${def.id}`, weaponId: def.id });
     }
   }
 
   for (const def of STAT_BOOSTS) {
-    pool.push({ kind: "stat", id: `stat:${def.stat}`, def });
+    normalPool.push({ kind: "stat", id: `stat:${def.stat}`, def });
   }
 
-  return shuffle(pool)
-    .slice(0, count)
-    .map((choice) => buildOption(choice, luck));
+  // Each eligible evolution rolls independently against the offer chance.
+  const offeredEvos = evolutionChoices.filter(() => Math.random() < evolutionChance).slice(0, count);
+  const remaining = Math.max(0, count - offeredEvos.length);
+  const offeredNormals = shuffle(normalPool).slice(0, remaining);
+
+  return shuffle([...offeredEvos, ...offeredNormals]).map((choice) => buildOption(choice, luck));
 }

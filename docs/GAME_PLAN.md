@@ -110,10 +110,12 @@ Each of the three level-up choices independently rolls a **rarity** that scales 
 - **Stat boosts available:** Vitality (+Max HP), Swiftness (+% Move Speed), Magnet (+Pickup Radius),
   Might (+% Attack), **Wisdom (+% XP Gain)**. Stat boosts and ordinary weapon upgrades **cap at Epic**.
 - **Legendary = weapon evolution.** Legendary never appears on stat boosts. It is reserved for the
-  **"crazy upgrade"** offered only when a weapon reaches **Level 10** (and hasn't evolved yet). Each
-  weapon defines an `evolution` (e.g. Magic Bolt → *Bolt Storm*: 3 bolts, ×2 damage; Scatter Shards →
-  *Shard Nova*: +4 shards, +50% damage, much faster). Evolving applies a multiplicative/additive stat
-  transform on top of the Lv-10 stats. (Full *behavioral* evolutions remain a Phase 2 expansion.)
+  **"crazy upgrade"** for a weapon at **Level 10** (and not yet evolved). Once eligible, the evolution
+  is *offered* on a given level-up with a **10% probability** (`EVOLUTION_OFFER_CHANCE`); otherwise the
+  slots fill with normal upgrades. Each weapon defines an `evolution` (e.g. Magic Bolt → *Bolt Storm*:
+  3 bolts, ×2 damage; Scatter Shards → *Shard Nova*: +4 shards, +50% damage, much faster). Evolving
+  applies a multiplicative/additive stat transform on top of the Lv-10 stats. (Full *behavioral*
+  evolutions remain a Phase 2 expansion.)
 - **Luck stat** biases the rarity roll toward higher tiers (within the allowed cap). Weights ≈
   `normal 100`, `rare 22 + 6·luck`, `epic 7 + 3.5·luck` (normal is fixed, so its share shrinks as
   luck rises).

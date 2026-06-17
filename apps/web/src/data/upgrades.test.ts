@@ -31,18 +31,36 @@ describe("rollUpgrades", () => {
     }
   });
 
-  it("offers a Legendary 'evolve-weapon' option for a maxed, un-evolved weapon", () => {
+  it("offers a Legendary 'evolve-weapon' option for a maxed, un-evolved weapon when it procs", () => {
     const owned = new Map<WeaponId, number>([["bolt", 10]]);
-    const opts = rollUpgrades(owned, NONE, 0, 10);
+    const opts = rollUpgrades(owned, NONE, 0, 10, 1); // force the offer
     const evo = opts.find((o) => o.kind === "evolve-weapon" && o.weaponId === "bolt");
     expect(evo).toBeDefined();
     expect(evo?.rarity).toBe("legendary");
   });
 
+  it("does not offer the evolution when the offer chance does not proc", () => {
+    const owned = new Map<WeaponId, number>([["bolt", 10]]);
+    const opts = rollUpgrades(owned, NONE, 0, 10, 0); // never offer
+    expect(opts.some((o) => o.kind === "evolve-weapon")).toBe(false);
+  });
+
+  it("offers the evolution at roughly the configured probability", () => {
+    const owned = new Map<WeaponId, number>([["bolt", 10]]);
+    const trials = 4000;
+    let offered = 0;
+    for (let i = 0; i < trials; i++) {
+      if (rollUpgrades(owned, NONE, 0, 3).some((o) => o.kind === "evolve-weapon")) offered++;
+    }
+    const rate = offered / trials;
+    expect(rate).toBeGreaterThan(0.06);
+    expect(rate).toBeLessThan(0.14);
+  });
+
   it("does not offer evolution once the weapon is already evolved", () => {
     const owned = new Map<WeaponId, number>([["bolt", 10]]);
     const evolved = new Set<WeaponId>(["bolt"]);
-    const opts = rollUpgrades(owned, evolved, 0, 10);
+    const opts = rollUpgrades(owned, evolved, 0, 10, 1); // even forced, it's excluded
     expect(opts.some((o) => o.kind === "evolve-weapon" && o.weaponId === "bolt")).toBe(false);
   });
 
