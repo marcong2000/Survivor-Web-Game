@@ -48,6 +48,11 @@ export interface PlayerStats {
   pickupRadius: number;
   /** XP gain multiplier (1 = 100%). */
   xpGain: number;
+  /**
+   * Biases level-up upgrade rarities toward higher tiers. 0 = base odds; each
+   * point shifts probability mass toward rare/epic/legendary.
+   */
+  luck: number;
 }
 
 // ---------------------------------------------------------------------------

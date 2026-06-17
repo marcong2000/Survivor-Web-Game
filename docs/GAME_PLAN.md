@@ -89,12 +89,35 @@ the project comfortably within Cloudflare free tiers and low-latency.
 1. Player moves (WASD); weapons fire automatically, aimed by the chosen aim mode.
 2. Killing a monster drops **XP gems collected only when the player is within pickup radius** of the
    death location. A *pickup radius* stat draws gems in from farther away.
-3. On level-up, present **3 random upgrade choices**: level an existing weapon, or add a new weapon.
+3. On level-up the player is **fully healed** and shown **3 random upgrade choices** (level an
+   existing weapon, add a new weapon, or boost a stat). See §3.2a for upgrade rarities.
 4. A weapon reaching **level 10 evolves** — a *behavioral* change, not just bigger numbers.
    - Reference example: **Boomerang → bounces between up to 5 nearby enemies, prioritizing targets
      that have not yet been bounced.**
 5. Each map has a **boss**. Defeating it advances the map (Normal) or ramps difficulty (Unlimited).
 6. On death / run-end, the run awards **points → gold + rune points** for meta-progression.
+
+### 3.2a Level-up upgrades, rarity & luck — implemented
+Each of the three level-up choices independently rolls a **rarity** that scales its strength:
+
+| Rarity | Stat-boost multiplier | Weapon levels granted |
+|--------|----------------------|-----------------------|
+| Normal | ×1.0 | +1 |
+| Rare | ×1.6 | +2 |
+| Epic | ×2.5 | +3 |
+| Legendary | ×4.0 | +5 (capped at Lv 10) |
+
+- **Stat boosts available:** Vitality (+Max HP), Swiftness (+% Move Speed), Magnet (+Pickup Radius),
+  Might (+% Attack), **Wisdom (+% XP Gain)**.
+- **Luck stat** biases the rarity roll toward higher tiers. Weights ≈ `normal 100`,
+  `rare 22 + 6·luck`, `epic 7 + 3.5·luck`, `legendary 1.2 + 1.2·luck` (normal is fixed, so its share
+  shrinks as luck rises). At luck 0, odds are roughly 74% / 18% / 6% / 1%.
+- **Full heal:** leveling up restores the player to full HP.
+
+Implementation: `apps/web/src/data/upgrades.ts` (rarity table, luck-weighted roll, Wisdom, magnitude
+helpers); `GameScene` applies the rolled rarity/magnitude and heals on level-up; the level-up overlay
+shows each option's rarity. `luck` is part of `PlayerStats` (settable in GM mode; future meta-
+progression — gold shop / runes — can raise it).
 
 ### 3.3 Modes
 - **Normal** — 4 maps, one boss each. Clearing all 4 wins the game. The first full clear unlocks

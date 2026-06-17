@@ -3,7 +3,7 @@ import type { PlayerStats, WeaponId } from "@survivor/shared";
 import { CHARACTERS } from "../../data/characters.js";
 import { MAPS } from "../../data/maps.js";
 import { WEAPONS, weaponStatsAtLevel } from "../../data/weapons.js";
-import { rollUpgrades, statBoostDelta, type UpgradeOption } from "../../data/upgrades.js";
+import { rollUpgrades, statBoostAmount, type UpgradeOption } from "../../data/upgrades.js";
 import { gameBus } from "../GameBus.js";
 import { GAME_HEIGHT, GAME_WIDTH, WORLD_SIZE } from "../config.js";
 import type { RunConfig } from "../types.js";
@@ -406,7 +406,8 @@ export class GameScene extends Phaser.Scene {
   private triggerLevelUp() {
     this.running = false;
     this.physics.pause();
-    this.pendingOptions = rollUpgrades(this.ownedWeapons, 3);
+    this.hp = this.maxHp; // leveling up fully heals the player
+    this.pendingOptions = rollUpgrades(this.ownedWeapons, this.stats.luck, 3);
     this.emitHud();
     gameBus.emitTyped("levelup", { level: this.level, options: this.pendingOptions });
   }
@@ -433,14 +434,14 @@ export class GameScene extends Phaser.Scene {
   private applyUpgrade(option: UpgradeOption) {
     switch (option.kind) {
       case "new-weapon":
-        this.ownedWeapons.set(option.weaponId, 1);
+        this.ownedWeapons.set(option.weaponId, option.toLevel);
         this.weaponCooldowns.set(option.weaponId, 0);
         break;
       case "level-weapon":
         this.ownedWeapons.set(option.weaponId, option.toLevel);
         break;
       case "stat": {
-        const delta = statBoostDelta(option.stat, this.stats[option.stat]);
+        const delta = statBoostAmount(option.stat, option.rarity, this.stats[option.stat]);
         if (option.stat === "maxHp") {
           this.maxHp += delta;
           this.stats.maxHp += delta;

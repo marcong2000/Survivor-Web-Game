@@ -422,13 +422,35 @@ button {
   transform: translateY(1px);
 }
 
+.choice-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .choice-name {
   font-weight: 700;
+}
+
+.rarity-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .choice-desc {
   font-size: 13px;
   color: var(--subtle);
+}
+
+.choice.rarity-legendary {
+  box-shadow: 0 0 14px rgba(255, 179, 71, 0.35);
+}
+
+.choice.rarity-epic {
+  box-shadow: 0 0 10px rgba(178, 103, 230, 0.3);
 }
 
 .result-list {

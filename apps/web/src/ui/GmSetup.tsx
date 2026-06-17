@@ -17,6 +17,7 @@ const STAT_FIELDS: { key: keyof PlayerStats; label: string; step: number }[] = [
   { key: "moveSpeed", label: "Move Speed", step: 10 },
   { key: "pickupRadius", label: "Pickup Radius", step: 5 },
   { key: "xpGain", label: "XP Gain (×)", step: 0.1 },
+  { key: "luck", label: "Luck", step: 1 },
 ];
 
 /**

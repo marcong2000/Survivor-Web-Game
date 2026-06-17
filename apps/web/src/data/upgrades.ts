@@ -1,35 +1,113 @@
 import type { WeaponId } from "@survivor/shared";
 import { WEAPONS } from "./weapons.js";
 
-/**
- * A single offered choice on the level-up screen. Either levels an owned
- * weapon, grants a new weapon, or boosts a player stat.
- */
-export type UpgradeOption =
-  | { kind: "new-weapon"; id: string; weaponId: WeaponId; name: string; description: string }
-  | { kind: "level-weapon"; id: string; weaponId: WeaponId; name: string; description: string; toLevel: number }
-  | { kind: "stat"; id: string; stat: StatBoost; name: string; description: string };
+// ---------------------------------------------------------------------------
+// Rarity
+// ---------------------------------------------------------------------------
 
-export type StatBoost = "maxHp" | "moveSpeed" | "pickupRadius" | "attack";
+export type Rarity = "normal" | "rare" | "epic" | "legendary";
+
+export const RARITY_ORDER: Rarity[] = ["normal", "rare", "epic", "legendary"];
+
+interface RarityDef {
+  label: string;
+  color: string;
+  /** Multiplier applied to a stat boost's base magnitude. */
+  statMultiplier: number;
+  /** Levels granted by a weapon upgrade (or starting level for a new weapon). */
+  weaponLevels: number;
+}
+
+export const RARITY: Record<Rarity, RarityDef> = {
+  normal: { label: "Normal", color: "#b8c0b0", statMultiplier: 1, weaponLevels: 1 },
+  rare: { label: "Rare", color: "#4aa3ff", statMultiplier: 1.6, weaponLevels: 2 },
+  epic: { label: "Epic", color: "#b267e6", statMultiplier: 2.5, weaponLevels: 3 },
+  legendary: { label: "Legendary", color: "#ffb347", statMultiplier: 4, weaponLevels: 5 },
+};
+
+/**
+ * Probability weights per rarity, biased by luck. Normal stays fixed while the
+ * higher tiers grow with luck, so more luck = better expected upgrades.
+ */
+export function rarityWeights(luck: number): Record<Rarity, number> {
+  const l = Math.max(0, luck);
+  return {
+    normal: 100,
+    rare: 22 + l * 6,
+    epic: 7 + l * 3.5,
+    legendary: 1.2 + l * 1.2,
+  };
+}
+
+function rollRarity(luck: number): Rarity {
+  const weights = rarityWeights(luck);
+  const total = RARITY_ORDER.reduce((sum, r) => sum + weights[r], 0);
+  let roll = Math.random() * total;
+  for (const r of RARITY_ORDER) {
+    roll -= weights[r];
+    if (roll < 0) return r;
+  }
+  return "normal";
+}
+
+// ---------------------------------------------------------------------------
+// Stat boosts
+// ---------------------------------------------------------------------------
+
+export type StatBoost = "maxHp" | "moveSpeed" | "pickupRadius" | "attack" | "xpGain";
 
 interface StatBoostDef {
   stat: StatBoost;
   name: string;
-  description: string;
-  apply: (amount: number) => number; // returns the additive/multiplicative delta
+  displayLabel: string;
+  /** Percentage boosts scale with the player's current value of the stat. */
+  isPercent: boolean;
+  /** Base magnitude (flat amount, or fraction for percent boosts). */
+  base: number;
 }
 
 const STAT_BOOSTS: StatBoostDef[] = [
-  { stat: "maxHp", name: "Vitality", description: "+20 Max HP", apply: () => 20 },
-  { stat: "moveSpeed", name: "Swiftness", description: "+12% Move Speed", apply: (v) => v * 0.12 },
-  { stat: "pickupRadius", name: "Magnet", description: "+25 Pickup Radius", apply: () => 25 },
-  { stat: "attack", name: "Might", description: "+10% Attack", apply: (v) => v * 0.1 },
+  { stat: "maxHp", name: "Vitality", displayLabel: "Max HP", isPercent: false, base: 20 },
+  { stat: "moveSpeed", name: "Swiftness", displayLabel: "Move Speed", isPercent: true, base: 0.12 },
+  { stat: "pickupRadius", name: "Magnet", displayLabel: "Pickup Radius", isPercent: false, base: 25 },
+  { stat: "attack", name: "Might", displayLabel: "Attack", isPercent: true, base: 0.1 },
+  { stat: "xpGain", name: "Wisdom", displayLabel: "XP Gain", isPercent: true, base: 0.15 },
 ];
 
-export function statBoostDelta(stat: StatBoost, currentValue: number): number {
+/** The actual delta to apply for a stat boost at a given rarity. */
+export function statBoostAmount(stat: StatBoost, rarity: Rarity, currentValue: number): number {
   const def = STAT_BOOSTS.find((b) => b.stat === stat);
-  return def ? def.apply(currentValue) : 0;
+  if (!def) return 0;
+  const mult = RARITY[rarity].statMultiplier;
+  return def.isPercent ? currentValue * def.base * mult : def.base * mult;
 }
+
+function statDescription(def: StatBoostDef, rarity: Rarity): string {
+  const amt = def.base * RARITY[rarity].statMultiplier;
+  return def.isPercent
+    ? `+${Math.round(amt * 100)}% ${def.displayLabel}`
+    : `+${Math.round(amt)} ${def.displayLabel}`;
+}
+
+// ---------------------------------------------------------------------------
+// Upgrade options
+// ---------------------------------------------------------------------------
+
+/**
+ * A single offered choice on the level-up screen. Either levels an owned
+ * weapon, grants a new weapon, or boosts a player stat — each carrying a rolled
+ * rarity that scales its strength.
+ */
+export type UpgradeOption =
+  | { kind: "new-weapon"; id: string; rarity: Rarity; weaponId: WeaponId; name: string; description: string; toLevel: number }
+  | { kind: "level-weapon"; id: string; rarity: Rarity; weaponId: WeaponId; name: string; description: string; toLevel: number }
+  | { kind: "stat"; id: string; rarity: Rarity; stat: StatBoost; name: string; description: string };
+
+/** The distinct base choices available, before a rarity is rolled for each. */
+type BaseChoice =
+  | { kind: "new-weapon"; id: string; weaponId: WeaponId }
+  | { kind: "level-weapon"; id: string; weaponId: WeaponId; level: number }
+  | { kind: "stat"; id: string; def: StatBoostDef };
 
 /** Fisher-Yates shuffle (non-mutating). */
 function shuffle<T>(arr: T[]): T[] {
@@ -41,41 +119,72 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+function buildOption(choice: BaseChoice, luck: number): UpgradeOption {
+  const rarity = rollRarity(luck);
+  switch (choice.kind) {
+    case "new-weapon": {
+      const def = WEAPONS[choice.weaponId];
+      const toLevel = Math.min(def.maxLevel, RARITY[rarity].weaponLevels);
+      return {
+        kind: "new-weapon",
+        id: choice.id,
+        rarity,
+        weaponId: choice.weaponId,
+        name: `New: ${def.name}`,
+        description: toLevel > 1 ? `${def.description} (starts at Lv ${toLevel})` : def.description,
+        toLevel,
+      };
+    }
+    case "level-weapon": {
+      const def = WEAPONS[choice.weaponId];
+      const toLevel = Math.min(def.maxLevel, choice.level + RARITY[rarity].weaponLevels);
+      return {
+        kind: "level-weapon",
+        id: choice.id,
+        rarity,
+        weaponId: choice.weaponId,
+        name: `${def.name} → Lv ${toLevel}`,
+        description: def.description,
+        toLevel,
+      };
+    }
+    case "stat":
+      return {
+        kind: "stat",
+        id: choice.id,
+        rarity,
+        stat: choice.def.stat,
+        name: choice.def.name,
+        description: statDescription(choice.def, rarity),
+      };
+  }
+}
+
 /**
- * Build a pool of valid upgrades for the current run state and return up to
- * `count` distinct random choices.
+ * Build the pool of valid base choices for the current run state, pick up to
+ * `count` distinct ones at random, and roll a (luck-weighted) rarity for each.
  */
 export function rollUpgrades(
   ownedWeapons: ReadonlyMap<WeaponId, number>,
+  luck = 0,
   count = 3,
 ): UpgradeOption[] {
-  const pool: UpgradeOption[] = [];
+  const pool: BaseChoice[] = [];
 
   for (const def of Object.values(WEAPONS)) {
     const level = ownedWeapons.get(def.id);
     if (level === undefined) {
-      pool.push({
-        kind: "new-weapon",
-        id: `new:${def.id}`,
-        weaponId: def.id,
-        name: `New: ${def.name}`,
-        description: def.description,
-      });
+      pool.push({ kind: "new-weapon", id: `new:${def.id}`, weaponId: def.id });
     } else if (level < def.maxLevel) {
-      pool.push({
-        kind: "level-weapon",
-        id: `lvl:${def.id}`,
-        weaponId: def.id,
-        name: `${def.name} → Lv ${level + 1}`,
-        description: def.description,
-        toLevel: level + 1,
-      });
+      pool.push({ kind: "level-weapon", id: `lvl:${def.id}`, weaponId: def.id, level });
     }
   }
 
-  for (const b of STAT_BOOSTS) {
-    pool.push({ kind: "stat", id: `stat:${b.stat}`, stat: b.stat, name: b.name, description: b.description });
+  for (const def of STAT_BOOSTS) {
+    pool.push({ kind: "stat", id: `stat:${def.stat}`, def });
   }
 
-  return shuffle(pool).slice(0, count);
+  return shuffle(pool)
+    .slice(0, count)
+    .map((choice) => buildOption(choice, luck));
 }

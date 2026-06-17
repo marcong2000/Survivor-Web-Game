@@ -12,6 +12,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       moveSpeed: 200,
       pickupRadius: 70,
       xpGain: 1,
+      luck: 0,
     },
     startWeaponId: "bolt",
     unlockCondition: null,
