@@ -70,7 +70,17 @@ export interface WeaponStats {
   range: number;
   /** Number of projectiles fired per activation. */
   count: number;
+  /** How many enemies a projectile can hit before despawning (projectile behavior). */
+  pierce: number;
 }
+
+/**
+ * How a weapon behaves:
+ * - `projectile` — fires straight shot(s) that travel and (optionally) pierce.
+ * - `boomerang`  — flies out and returns; its evolution ricochets between enemies.
+ * - `aura`       — a persistent damaging field around the player that ticks.
+ */
+export type WeaponBehavior = "projectile" | "boomerang" | "aura";
 
 /**
  * A weapon's level-10 evolution — the "crazy upgrade" applied when an owned,
@@ -82,6 +92,11 @@ export interface WeaponEvolution {
   description: string;
   mult?: Partial<WeaponStats>;
   add?: Partial<WeaponStats>;
+  /**
+   * Behavioral evolution for boomerangs: instead of returning, the projectile
+   * ricochets between up to this many nearby enemies, prioritizing un-hit ones.
+   */
+  ricochetBounces?: number;
 }
 
 export interface WeaponDef {
@@ -93,6 +108,7 @@ export interface WeaponDef {
   /** Additive deltas applied per level above 1 (levels 2..maxLevel). */
   perLevelStats: Partial<WeaponStats>;
   maxLevel: number;
+  behavior: WeaponBehavior;
   /** Optional level-10 evolution (the only source of Legendary upgrades). */
   evolution?: WeaponEvolution;
 }

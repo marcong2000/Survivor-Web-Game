@@ -17,6 +17,7 @@ export class BootScene extends Phaser.Scene {
     this.makeCircleTexture("enemy", 12, 0xe5534b);
     this.makeCircleTexture("boss", 36, 0xb267e6);
     this.makeCircleTexture("projectile", 5, 0xffe066);
+    this.makeRingTexture("boomerang", 9, 0xffa53c);
     this.makeGemTexture("gem", 8, 0x4be8d0);
 
     const cfg = this.registry.get(RUN_CONFIG_KEY) as RunConfig;
@@ -29,6 +30,14 @@ export class BootScene extends Phaser.Scene {
     g.fillCircle(radius, radius, radius);
     g.lineStyle(2, 0x000000, 0.35);
     g.strokeCircle(radius, radius, radius);
+    g.generateTexture(key, radius * 2, radius * 2);
+    g.destroy();
+  }
+
+  private makeRingTexture(key: string, radius: number, color: number) {
+    const g = this.make.graphics({ x: 0, y: 0 }, false);
+    g.lineStyle(4, color, 1);
+    g.strokeCircle(radius, radius, radius - 2);
     g.generateTexture(key, radius * 2, radius * 2);
     g.destroy();
   }

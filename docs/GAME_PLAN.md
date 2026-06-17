@@ -208,6 +208,31 @@ When present, `GameScene.create` skips the character defaults and starts the run
 chosen stats, weapons, levels, and player level. The setup UI lives in `apps/web/src/ui/GmSetup.tsx`.
 This is a developer/testing tool and is not part of the meta-progression or save data.
 
+### 3.8 Weapon roster & behaviors — implemented (Phase 2)
+
+Weapons are data-driven (`apps/web/src/data/weapons.ts`) and now span three **behaviors**:
+
+| Weapon | Behavior | Pierce | Evolution (Lv 10, Legendary) |
+|--------|----------|:------:|------------------------------|
+| Magic Bolt | projectile | 1 | *Bolt Storm* — 3 bolts, ×2 damage |
+| Scatter Shards | projectile | 1 | *Shard Nova* — +4 shards, +50% damage, faster |
+| Piercing Lance | projectile | 3 | *Spear of Ruin* — ×2.2 damage, pierces a whole crowd |
+| Boomerang | boomerang | — | *Ricochet* (**behavioral**) — bounces between up to 5 nearby enemies |
+| Pulse Aura | aura | — | *Nova Field* — far larger radius, faster pulses, ×2 damage |
+
+- **projectile** — straight shot(s) that travel and pierce up to `pierce` enemies (`pierce` is a
+  weapon stat; each shot hits a given enemy once).
+- **boomerang** — flies out to `range`, then arcs back to the player, hitting enemies on both legs.
+  Its evolution is the reference **behavioral** evolution: it stops returning and instead **ricochets
+  to the nearest not-yet-hit enemy**, up to 5 bounces (prioritizing un-bounced targets).
+- **aura** — a persistent field around the player that pulses every `cooldown`, damaging all enemies
+  within `range` (an AOE / melee archetype; rendered as a translucent ring that flashes on pulse).
+
+Implementation: `WeaponBehavior` + `pierce` on `WeaponStats`, and `ricochetBounces` on
+`WeaponEvolution` (`packages/shared`); per-behavior firing, projectile pierce/hit-tracking, boomerang
+out/back & ricochet movement, and the aura tick/visual live in `GameScene`. Enemies carry a unique id
+for hit de-duplication. Full *behavioral* evolutions for the other weapons remain a future expansion.
+
 ---
 
 ## 4. Implementation Roadmap (phased)
@@ -226,9 +251,11 @@ This is a developer/testing tool and is not part of the meta-progression or save
 - Run-end screen with score → gold / rune-point award.
 - **Local-first save** in IndexedDB (no account yet). *This is the first playable milestone.*
 
-### Phase 2 — Weapon depth & evolution
-- Multiple weapons, per-level scaling, the **level-10 evolution** mechanic (Boomerang bounce as the
-  reference implementation), and the upgrade-roller's weapon pool / dedupe logic.
+### Phase 2 — Weapon depth & evolution ✅ (see §3.8)
+- Multiple weapons (5) across 3 behaviors, per-level scaling, the **level-10 evolution** mechanic
+  including the **behavioral** Boomerang ricochet reference, a `pierce` stat, and the upgrade-roller's
+  weapon pool / dedupe logic. (Further behavioral evolutions for the other weapons are a later
+  expansion.)
 
 ### Phase 3 — Meta-progression
 - Gold shop (starting-stat upgrades); **rune tree** with focused-playstyle threshold bonuses;

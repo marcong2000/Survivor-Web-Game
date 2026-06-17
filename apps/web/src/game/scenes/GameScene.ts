@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import type { PlayerStats, WeaponId } from "@survivor/shared";
+import type { PlayerStats, WeaponDef, WeaponId, WeaponStats } from "@survivor/shared";
 import { CHARACTERS } from "../../data/characters.js";
 import { MAPS } from "../../data/maps.js";
 import { applyEvolution, WEAPONS, weaponStatsAtLevel } from "../../data/weapons.js";
@@ -34,6 +34,10 @@ export class GameScene extends Phaser.Scene {
   private ownedWeapons = new Map<WeaponId, number>();
   private weaponCooldowns = new Map<WeaponId, number>();
   private evolvedWeapons = new Set<WeaponId>();
+
+  private enemyId = 0;
+  private auraGfx?: Phaser.GameObjects.Arc;
+  private auraFlash = 0;
 
   private xp = 0;
   private level = 1;
@@ -117,6 +121,9 @@ export class GameScene extends Phaser.Scene {
     this.ownedWeapons.clear();
     this.weaponCooldowns.clear();
     this.evolvedWeapons.clear();
+    this.enemyId = 0;
+    this.auraFlash = 0;
+    this.auraGfx = undefined;
     this.xp = 0;
     this.level = 1;
     this.xpToNext = 8;
@@ -172,19 +179,39 @@ export class GameScene extends Phaser.Scene {
   // --- Weapons & aiming ----------------------------------------------------
 
   private handleWeapons(dt: number) {
+    if (this.auraFlash > 0) this.auraFlash -= dt;
+    let auraRadius = 0;
+
     for (const [weaponId, level] of this.ownedWeapons) {
       const def = WEAPONS[weaponId];
       if (!def) continue;
       let stats = weaponStatsAtLevel(def, level);
-      if (this.evolvedWeapons.has(weaponId)) stats = applyEvolution(stats, def);
+      const evolved = this.evolvedWeapons.has(weaponId);
+      if (evolved) stats = applyEvolution(stats, def);
+
+      if (def.behavior === "aura") auraRadius = Math.max(auraRadius, stats.range);
+
       const remaining = (this.weaponCooldowns.get(weaponId) ?? 0) - dt;
-      if (remaining <= 0) {
-        this.fireWeapon(weaponId, stats.damage, stats.projectileSpeed, stats.range, stats.count);
-        this.weaponCooldowns.set(weaponId, stats.cooldown);
-      } else {
+      if (remaining > 0) {
         this.weaponCooldowns.set(weaponId, remaining);
+        continue;
+      }
+      this.weaponCooldowns.set(weaponId, stats.cooldown);
+
+      switch (def.behavior) {
+        case "projectile":
+          this.fireProjectiles(weaponId, stats);
+          break;
+        case "boomerang":
+          this.fireBoomerang(weaponId, stats, evolved, def);
+          break;
+        case "aura":
+          this.auraTick(stats);
+          break;
       }
     }
+
+    this.updateAuraVisual(auraRadius);
   }
 
   /** Direction to fire, governed by the persistent aim mode. */
@@ -201,12 +228,13 @@ export class GameScene extends Phaser.Scene {
     return new Phaser.Math.Vector2(target.x - this.player.x, target.y - this.player.y).normalize();
   }
 
-  private findNearestEnemy(maxDist: number): Sprite | null {
+  private findNearestEnemy(maxDist: number, exclude?: ReadonlySet<number>): Sprite | null {
     let best: Sprite | null = null;
     let bestD = maxDist * maxDist;
     for (const obj of this.enemies.getChildren()) {
       const e = obj as Sprite;
       if (!e.active) continue;
+      if (exclude && exclude.has(e.getData("eid") as number)) continue;
       const d = Phaser.Math.Distance.Squared(this.player.x, this.player.y, e.x, e.y);
       if (d < bestD) {
         bestD = d;
@@ -216,38 +244,156 @@ export class GameScene extends Phaser.Scene {
     return best;
   }
 
-  private fireWeapon(weaponId: WeaponId, damage: number, speed: number, range: number, count: number) {
-    const aim = this.getAimVector(range);
-    if (!aim) return;
+  private spawnProjectile(texture: string): Sprite | null {
+    const proj = this.projectiles.get(this.player.x, this.player.y, texture) as Sprite | null;
+    if (!proj) return null;
+    proj.setActive(true).setVisible(true);
+    proj.setTexture(texture);
+    proj.setDepth(8);
+    proj.setRotation(0);
+    const body = proj.body as Phaser.Physics.Arcade.Body;
+    body.enable = true;
+    body.reset(this.player.x, this.player.y);
+    return proj;
+  }
 
+  private fireProjectiles(weaponId: WeaponId, stats: WeaponStats) {
+    const aim = this.getAimVector(stats.range);
+    if (!aim) return;
     const baseAngle = aim.angle();
     const spread = Phaser.Math.DegToRad(18);
-    for (let i = 0; i < count; i++) {
-      const offset = count > 1 ? (i - (count - 1) / 2) * spread : 0;
-      const angle = baseAngle + offset;
-      const proj = this.projectiles.get(this.player.x, this.player.y, "projectile") as Sprite | null;
+    const speed = Math.max(1, stats.projectileSpeed);
+    for (let i = 0; i < stats.count; i++) {
+      const offset = stats.count > 1 ? (i - (stats.count - 1) / 2) * spread : 0;
+      const proj = this.spawnProjectile("projectile");
       if (!proj) continue;
-      proj.setActive(true).setVisible(true);
-      proj.setDepth(8);
       const body = proj.body as Phaser.Physics.Arcade.Body;
-      body.enable = true;
-      body.reset(this.player.x, this.player.y);
-      this.physics.velocityFromRotation(angle, speed, body.velocity);
-      proj.setData("damage", damage * this.stats.attack);
-      proj.setData("ttl", range / speed);
+      this.physics.velocityFromRotation(baseAngle + offset, speed, body.velocity);
+      proj.setData("behavior", "projectile");
+      proj.setData("damage", stats.damage * this.stats.attack);
+      proj.setData("pierceLeft", Math.max(1, Math.round(stats.pierce)));
+      proj.setData("hit", new Set<number>());
+      proj.setData("ttl", stats.range / speed);
       proj.setData("weapon", weaponId);
     }
+  }
+
+  private fireBoomerang(weaponId: WeaponId, stats: WeaponStats, evolved: boolean, def: WeaponDef) {
+    const aim = this.getAimVector(stats.range);
+    if (!aim) return;
+    const baseAngle = aim.angle();
+    const spread = Phaser.Math.DegToRad(20);
+    const speed = Math.max(1, stats.projectileSpeed);
+    const ricochet = evolved && !!def.evolution?.ricochetBounces;
+    const maxBounces = def.evolution?.ricochetBounces ?? 5;
+    for (let i = 0; i < stats.count; i++) {
+      const offset = stats.count > 1 ? (i - (stats.count - 1) / 2) * spread : 0;
+      const proj = this.spawnProjectile("boomerang");
+      if (!proj) continue;
+      const body = proj.body as Phaser.Physics.Arcade.Body;
+      this.physics.velocityFromRotation(baseAngle + offset, speed, body.velocity);
+      proj.setData("behavior", "boomerang");
+      proj.setData("damage", stats.damage * this.stats.attack);
+      proj.setData("hit", new Set<number>());
+      proj.setData("weapon", weaponId);
+      proj.setData("speed", speed);
+      proj.setData("range", stats.range);
+      proj.setData("ox", this.player.x);
+      proj.setData("oy", this.player.y);
+      proj.setData("phase", "out");
+      proj.setData("ricochet", ricochet);
+      proj.setData("maxBounces", maxBounces);
+      proj.setData("life", 8); // safety lifetime so a boomerang can't leak
+    }
+  }
+
+  private auraTick(stats: WeaponStats) {
+    const dmg = stats.damage * this.stats.attack;
+    const r2 = stats.range * stats.range;
+    for (const obj of this.enemies.getChildren()) {
+      const e = obj as Sprite;
+      if (!e.active) continue;
+      if (Phaser.Math.Distance.Squared(this.player.x, this.player.y, e.x, e.y) <= r2) {
+        this.damageEnemy(e, dmg);
+      }
+    }
+    this.auraFlash = 0.12;
+  }
+
+  private updateAuraVisual(radius: number) {
+    if (radius <= 0) {
+      this.auraGfx?.setVisible(false);
+      return;
+    }
+    if (!this.auraGfx) {
+      this.auraGfx = this.add.circle(this.player.x, this.player.y, radius, 0x57b9ff, 0.1);
+      this.auraGfx.setDepth(2);
+    }
+    this.auraGfx.setVisible(true);
+    this.auraGfx.setPosition(this.player.x, this.player.y);
+    this.auraGfx.setRadius(radius);
+    this.auraGfx.setFillStyle(0x57b9ff, this.auraFlash > 0 ? 0.28 : 0.1);
   }
 
   private updateProjectiles(dt: number) {
     for (const obj of this.projectiles.getChildren()) {
       const proj = obj as Sprite;
       if (!proj.active) continue;
+      if ((proj.getData("behavior") as string) === "boomerang") {
+        this.updateBoomerang(proj, dt);
+        continue;
+      }
       const ttl = (proj.getData("ttl") as number) - dt;
       if (ttl <= 0) {
         this.despawn(proj);
       } else {
         proj.setData("ttl", ttl);
+      }
+    }
+  }
+
+  private updateBoomerang(proj: Sprite, dt: number) {
+    proj.rotation += 12 * dt; // spin for visual flair
+    const life = (proj.getData("life") as number) - dt;
+    if (life <= 0) {
+      this.despawn(proj);
+      return;
+    }
+    proj.setData("life", life);
+
+    const body = proj.body as Phaser.Physics.Arcade.Body;
+    const speed = proj.getData("speed") as number;
+    const hit = proj.getData("hit") as Set<number>;
+
+    if (proj.getData("ricochet") as boolean) {
+      // Evolved: chain to the nearest not-yet-hit enemy, up to maxBounces.
+      if (hit.size >= (proj.getData("maxBounces") as number)) {
+        this.despawn(proj);
+        return;
+      }
+      const target = this.findNearestEnemy(Infinity, hit);
+      if (!target) {
+        this.despawn(proj);
+        return;
+      }
+      const angle = Phaser.Math.Angle.Between(proj.x, proj.y, target.x, target.y);
+      this.physics.velocityFromRotation(angle, speed, body.velocity);
+      return;
+    }
+
+    // Normal boomerang: fly out to range, then home back to the player.
+    if ((proj.getData("phase") as string) === "out") {
+      const ox = proj.getData("ox") as number;
+      const oy = proj.getData("oy") as number;
+      if (Phaser.Math.Distance.Between(proj.x, proj.y, ox, oy) >= (proj.getData("range") as number)) {
+        proj.setData("phase", "back");
+        hit.clear(); // can strike enemies again on the way back
+      }
+    } else {
+      const angle = Phaser.Math.Angle.Between(proj.x, proj.y, this.player.x, this.player.y);
+      this.physics.velocityFromRotation(angle, speed, body.velocity);
+      if (Phaser.Math.Distance.Between(proj.x, proj.y, this.player.x, this.player.y) <= 18) {
+        this.despawn(proj);
       }
     }
   }
@@ -289,6 +435,7 @@ export class GameScene extends Phaser.Scene {
     const ebody = e.body as Phaser.Physics.Arcade.Body;
     ebody.enable = true;
     ebody.reset(x, y);
+    e.setData("eid", ++this.enemyId);
 
     const minutes = this.elapsed / 60;
     if (isBoss) {
@@ -322,9 +469,26 @@ export class GameScene extends Phaser.Scene {
     const enemy = enemyObj as Sprite;
     if (!proj.active || !enemy.active) return;
 
-    const damage = proj.getData("damage") as number;
-    this.despawn(proj);
+    // Each projectile only damages a given enemy once (per leg, for boomerangs).
+    const hit = proj.getData("hit") as Set<number> | undefined;
+    const eid = enemy.getData("eid") as number;
+    if (hit) {
+      if (hit.has(eid)) return;
+      hit.add(eid);
+    }
 
+    this.damageEnemy(enemy, proj.getData("damage") as number);
+
+    // Straight projectiles pierce a limited number of enemies; boomerangs/auras
+    // manage their own lifetime, so don't despawn them on hit.
+    if ((proj.getData("behavior") as string) === "projectile") {
+      const pierceLeft = (proj.getData("pierceLeft") as number) - 1;
+      if (pierceLeft <= 0) this.despawn(proj);
+      else proj.setData("pierceLeft", pierceLeft);
+    }
+  };
+
+  private damageEnemy(enemy: Sprite, damage: number) {
     const hp = (enemy.getData("hp") as number) - damage;
     if (hp <= 0) {
       this.killEnemy(enemy);
@@ -332,7 +496,7 @@ export class GameScene extends Phaser.Scene {
       enemy.setData("hp", hp);
       this.flash(enemy);
     }
-  };
+  }
 
   private onEnemyTouchPlayer: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_playerObj, enemyObj) => {
     if (this.hurtCd > 0) return;
@@ -528,5 +692,7 @@ export class GameScene extends Phaser.Scene {
   private cleanup() {
     gameBus.offTyped("choose-upgrade", this.handleChooseUpgrade, this);
     gameBus.offTyped("quit-run", this.handleQuit, this);
+    this.auraGfx?.destroy();
+    this.auraGfx = undefined;
   }
 }
