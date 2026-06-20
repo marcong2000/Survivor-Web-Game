@@ -53,6 +53,7 @@ export class GameScene extends Phaser.Scene {
   private bossSpawned = false;
 
   private pendingOptions: UpgradeOption[] = [];
+  private pendingLevelUps = 0;
   private lastMoveDir = new Phaser.Math.Vector2(0, -1);
 
   constructor() {
@@ -136,6 +137,7 @@ export class GameScene extends Phaser.Scene {
     this.hurtCd = 0;
     this.bossSpawned = false;
     this.pendingOptions = [];
+    this.pendingLevelUps = 0;
     this.lastMoveDir.set(0, -1);
   }
 
@@ -630,44 +632,60 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private nextXpFor(level: number): number {
+    return Math.floor(8 + (level - 1) * 5 + Math.pow(level, 1.3));
+  }
+
   private gainXp(amount: number) {
     this.xp += amount * this.stats.xpGain;
+    // Accrue every crossed threshold into a queue; present them one at a time so
+    // each level gives its own pick and the run reliably resumes afterwards.
+    let leveled = false;
     while (this.xp >= this.xpToNext) {
       this.xp -= this.xpToNext;
       this.level += 1;
-      this.xpToNext = Math.floor(8 + (this.level - 1) * 5 + Math.pow(this.level, 1.3));
-      this.triggerLevelUp();
+      this.xpToNext = this.nextXpFor(this.level);
+      this.pendingLevelUps += 1;
+      leveled = true;
     }
+    if (leveled) this.presentNextLevelUp();
   }
 
   // --- Level up ------------------------------------------------------------
 
-  private triggerLevelUp() {
+  /** Show the next queued level-up, or resume the run when the queue is empty. */
+  private presentNextLevelUp() {
+    if (this.pendingLevelUps <= 0) {
+      this.resumeRun();
+      return;
+    }
     this.running = false;
     this.physics.pause();
     this.hp = this.maxHp; // leveling up fully heals the player
     this.pendingOptions = rollUpgrades(this.ownedWeapons, this.evolvedWeapons, this.stats.luck, 3);
+    if (this.pendingOptions.length === 0) {
+      // Nothing to offer — never strand the player on an empty overlay.
+      this.pendingLevelUps -= 1;
+      this.presentNextLevelUp();
+      return;
+    }
     this.emitHud();
     gameBus.emitTyped("levelup", { level: this.level, options: this.pendingOptions });
   }
 
-  private handleChooseUpgrade = (optionId: string) => {
-    const option = this.pendingOptions.find((o) => o.id === optionId) ?? this.pendingOptions[0];
-    if (option) this.applyUpgrade(option);
-    this.pendingOptions = [];
-
-    // A single XP overflow can stack multiple level-ups; surface the next one.
-    if (this.xp >= this.xpToNext) {
-      this.level += 1;
-      this.xp -= this.xpToNext;
-      this.xpToNext = Math.floor(8 + (this.level - 1) * 5 + Math.pow(this.level, 1.3));
-      this.triggerLevelUp();
-      return;
-    }
-
+  private resumeRun() {
     this.physics.resume();
     this.running = true;
     this.emitHud();
+  }
+
+  private handleChooseUpgrade = (optionId: string) => {
+    if (this.pendingOptions.length === 0) return; // ignore stray clicks
+    const option = this.pendingOptions.find((o) => o.id === optionId) ?? this.pendingOptions[0];
+    this.applyUpgrade(option);
+    this.pendingOptions = [];
+    this.pendingLevelUps -= 1;
+    this.presentNextLevelUp(); // shows the next queued level-up or resumes
   };
 
   private applyUpgrade(option: UpgradeOption) {
