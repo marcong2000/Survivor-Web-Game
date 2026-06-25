@@ -258,6 +258,20 @@ button {
   color: var(--text);
 }
 
+.gm-weapon-evolved {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 8px;
+  font-size: 12px;
+  color: var(--accent-2);
+}
+
+.gm-weapon-evolved em {
+  color: var(--subtle);
+  font-style: italic;
+}
+
 .gm-weapon-desc {
   margin: 0;
   font-size: 12px;

@@ -9,6 +9,7 @@ import { useSave } from "../save/SaveContext.js";
 interface WeaponPick {
   enabled: boolean;
   level: number;
+  evolved: boolean;
 }
 
 const STAT_FIELDS: { key: keyof PlayerStats; label: string; step: number }[] = [
@@ -43,7 +44,7 @@ export function GmSetup({
   const [picks, setPicks] = useState<Record<WeaponId, WeaponPick>>(() => {
     const init: Record<WeaponId, WeaponPick> = {};
     for (const id of Object.keys(WEAPONS)) {
-      init[id] = { enabled: id === startWeaponId, level: 1 };
+      init[id] = { enabled: id === startWeaponId, level: 1, evolved: false };
     }
     return init;
   });
@@ -56,7 +57,7 @@ export function GmSetup({
 
   const selectedWeapons = Object.entries(picks)
     .filter(([, p]) => p.enabled)
-    .map(([weaponId, p]) => ({ weaponId, level: p.level }));
+    .map(([weaponId, p]) => ({ weaponId, level: p.level, evolved: p.evolved }));
 
   const start = () => {
     onStart({
@@ -129,14 +130,33 @@ export function GmSetup({
                     step={1}
                     value={pick.level}
                     disabled={!pick.enabled}
-                    onChange={(e) =>
-                      setPick(w.id, {
-                        level: Math.min(w.maxLevel, Math.max(1, Number(e.target.value))),
-                      })
-                    }
+                    onChange={(e) => {
+                      const level = Math.min(w.maxLevel, Math.max(1, Number(e.target.value)));
+                      // Evolution requires max level; drop it if leveling back down.
+                      setPick(w.id, { level, evolved: pick.evolved && level >= w.maxLevel });
+                    }}
                   />
                   <span className="gm-weapon-max">/ {w.maxLevel}</span>
                 </label>
+                {w.evolution && (
+                  <label className="gm-weapon-evolved">
+                    <input
+                      type="checkbox"
+                      checked={pick.evolved}
+                      disabled={!pick.enabled}
+                      // Evolving implies a maxed weapon, so snap level to max.
+                      onChange={(e) =>
+                        setPick(w.id, {
+                          evolved: e.target.checked,
+                          level: e.target.checked ? w.maxLevel : pick.level,
+                        })
+                      }
+                    />
+                    <span>
+                      Start evolved <em>({w.evolution.name})</em>
+                    </span>
+                  </label>
+                )}
                 <p className="gm-weapon-desc">{w.description}</p>
               </div>
             );

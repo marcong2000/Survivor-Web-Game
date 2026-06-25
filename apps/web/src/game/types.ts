@@ -8,8 +8,8 @@ import type { UpgradeOption } from "../data/upgrades.js";
  */
 export interface GmLoadout {
   stats: PlayerStats;
-  /** Weapons the player starts with, each at the chosen level. */
-  weapons: { weaponId: WeaponId; level: number }[];
+  /** Weapons the player starts with, each at the chosen level (optionally evolved). */
+  weapons: { weaponId: WeaponId; level: number; evolved?: boolean }[];
   /** Player level to start at (affects the XP-to-next curve only). */
   startLevel: number;
 }

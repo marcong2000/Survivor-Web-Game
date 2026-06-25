@@ -75,8 +75,11 @@ export class GameScene extends Phaser.Scene {
       if (picks.length === 0) picks.push({ weaponId: character.startWeaponId, level: 1 });
       for (const w of picks) {
         const def = WEAPONS[w.weaponId];
-        this.ownedWeapons.set(w.weaponId, Phaser.Math.Clamp(Math.floor(w.level), 1, def.maxLevel));
+        // An evolved test weapon starts maxed and already evolved.
+        const level = w.evolved && def.evolution ? def.maxLevel : Phaser.Math.Clamp(Math.floor(w.level), 1, def.maxLevel);
+        this.ownedWeapons.set(w.weaponId, level);
         this.weaponCooldowns.set(w.weaponId, 0);
+        if (w.evolved && def.evolution) this.evolvedWeapons.add(w.weaponId);
       }
     } else {
       this.stats = { ...character.startStats };

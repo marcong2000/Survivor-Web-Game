@@ -200,7 +200,9 @@ the main menu, it opens a setup screen where you hand-pick a full loadout before
 
 - **Character stats** — Max HP, Attack, Move Speed, Pickup Radius, XP Gain, plus the starting player
   level.
-- **Weapons** — tick any subset of the weapon catalogue and set each one's level (1..maxLevel).
+- **Weapons** — tick any subset of the weapon catalogue, set each one's level (1..maxLevel), and
+  optionally **Start evolved** (snaps the weapon to max level and begins already evolved, so the
+  evolved behavior can be tested directly without waiting for the 10% evolution offer).
 - **Run options** — game mode (Normal / Unlimited) and aim mode (Assisted / Manual) overrides.
 
 Implementation: an optional `gm: GmLoadout` field on `RunConfig` (`apps/web/src/game/types.ts`).
