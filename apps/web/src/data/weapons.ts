@@ -62,9 +62,9 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     maxLevel: 10,
     evolution: {
       name: "Ricochet",
-      description: "No longer returns — instead bounces between up to 5 nearby enemies.",
+      description: "No longer returns — instead bounces between up to 3 nearby enemies.",
       mult: { damage: 1.4 },
-      ricochetBounces: 5,
+      ricochetBounces: 3,
     },
   },
   orbit: {

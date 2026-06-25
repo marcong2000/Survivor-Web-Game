@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WeaponId } from "@survivor/shared";
-import { rarityWeights, rollUpgrades, statBoostAmount } from "./upgrades.js";
+import { EVOLUTION_OFFER_CHANCE, rarityWeights, rollUpgrades, statBoostAmount } from "./upgrades.js";
 
 const NONE = new Set<WeaponId>();
 
@@ -48,13 +48,18 @@ describe("rollUpgrades", () => {
   it("offers the evolution at roughly the configured probability", () => {
     const owned = new Map<WeaponId, number>([["bolt", 10]]);
     const trials = 4000;
+    const chance = 0.4;
     let offered = 0;
     for (let i = 0; i < trials; i++) {
-      if (rollUpgrades(owned, NONE, 0, 3).some((o) => o.kind === "evolve-weapon")) offered++;
+      if (rollUpgrades(owned, NONE, 0, 3, chance).some((o) => o.kind === "evolve-weapon")) offered++;
     }
     const rate = offered / trials;
-    expect(rate).toBeGreaterThan(0.06);
-    expect(rate).toBeLessThan(0.14);
+    expect(rate).toBeGreaterThan(chance - 0.06);
+    expect(rate).toBeLessThan(chance + 0.06);
+  });
+
+  it("defaults the evolution offer chance to 40%", () => {
+    expect(EVOLUTION_OFFER_CHANCE).toBe(0.4);
   });
 
   it("does not offer evolution once the weapon is already evolved", () => {

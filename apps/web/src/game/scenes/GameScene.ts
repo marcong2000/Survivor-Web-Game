@@ -433,12 +433,14 @@ export class GameScene extends Phaser.Scene {
     const hit = proj.getData("hit") as Set<number>;
 
     if (proj.getData("ricochet") as boolean) {
-      // Evolved: chain to the nearest not-yet-hit enemy, up to maxBounces.
+      // Evolved: chain to the nearest not-yet-hit enemy within range, up to
+      // maxBounces. Despawn once that cap is reached or nothing is nearby.
       if (hit.size >= (proj.getData("maxBounces") as number)) {
         this.despawn(proj);
         return;
       }
-      const target = this.findNearestEnemy(Infinity, hit);
+      const searchRange = proj.getData("range") as number;
+      const target = this.findNearestEnemy(searchRange, hit);
       if (!target) {
         this.despawn(proj);
         return;

@@ -184,7 +184,7 @@ function buildOption(choice: BaseChoice, luck: number): UpgradeOption {
 }
 
 /** Chance, per level-up, that an eligible Lv-10 weapon's evolution is offered. */
-export const EVOLUTION_OFFER_CHANCE = 0.1;
+export const EVOLUTION_OFFER_CHANCE = 0.4;
 
 /**
  * Build the pool of valid base choices for the current run state, pick up to

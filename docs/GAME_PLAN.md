@@ -92,7 +92,7 @@ the project comfortably within Cloudflare free tiers and low-latency.
 3. On level-up the player is **fully healed** and shown **3 random upgrade choices** (level an
    existing weapon, add a new weapon, or boost a stat). See §3.2a for upgrade rarities.
 4. A weapon reaching **level 10 evolves** — a *behavioral* change, not just bigger numbers.
-   - Reference example: **Boomerang → bounces between up to 5 nearby enemies, prioritizing targets
+   - Reference example: **Boomerang → bounces between up to 3 nearby enemies, prioritizing targets
      that have not yet been bounced.**
 5. Each map has a **boss**. Defeating it advances the map (Normal) or ramps difficulty (Unlimited).
 6. On death / run-end, the run awards **points → gold + rune points** for meta-progression.
@@ -111,7 +111,7 @@ Each of the three level-up choices independently rolls a **rarity** that scales 
   Might (+% Attack), **Wisdom (+% XP Gain)**. Stat boosts and ordinary weapon upgrades **cap at Epic**.
 - **Legendary = weapon evolution.** Legendary never appears on stat boosts. It is reserved for the
   **"crazy upgrade"** for a weapon at **Level 10** (and not yet evolved). Once eligible, the evolution
-  is *offered* on a given level-up with a **10% probability** (`EVOLUTION_OFFER_CHANCE`); otherwise the
+  is *offered* on a given level-up with a **40% probability** (`EVOLUTION_OFFER_CHANCE`); otherwise the
   slots fill with normal upgrades. Each weapon defines an `evolution` (e.g. Magic Bolt → *Bolt Storm*:
   3 bolts, ×2 damage; Scatter Shards → *Shard Nova*: +4 shards, +50% damage, much faster). Evolving
   applies a multiplicative/additive stat transform on top of the Lv-10 stats. (Full *behavioral*
@@ -202,7 +202,7 @@ the main menu, it opens a setup screen where you hand-pick a full loadout before
   level.
 - **Weapons** — tick any subset of the weapon catalogue, set each one's level (1..maxLevel), and
   optionally **Start evolved** (snaps the weapon to max level and begins already evolved, so the
-  evolved behavior can be tested directly without waiting for the 10% evolution offer).
+  evolved behavior can be tested directly without waiting for the 40% evolution offer).
 - **Run options** — game mode (Normal / Unlimited) and aim mode (Assisted / Manual) overrides.
 
 Implementation: an optional `gm: GmLoadout` field on `RunConfig` (`apps/web/src/game/types.ts`).
@@ -219,7 +219,7 @@ Weapons are data-driven (`apps/web/src/data/weapons.ts`) and now span three **be
 | Magic Bolt | projectile | 1 | *Bolt Storm* — 3 bolts, ×2 damage |
 | Scatter Shards | projectile | 1 | *Shard Nova* — +4 shards, +50% damage, faster |
 | Piercing Lance | projectile | 3 | *Spear of Ruin* — ×2.2 damage, pierces a whole crowd |
-| Boomerang | boomerang | — | *Ricochet* (**behavioral**) — bounces between up to 5 nearby enemies |
+| Boomerang | boomerang | — | *Ricochet* (**behavioral**) — bounces between up to 3 nearby enemies |
 | Orbiting Wards | orbit | — | *Astral Halo* — +2 wards, wider orbit, ~×1.9 damage |
 | Pulse Aura | aura | — | *Nova Field* — far larger radius, faster pulses, ×2 damage |
 
@@ -227,7 +227,8 @@ Weapons are data-driven (`apps/web/src/data/weapons.ts`) and now span three **be
   weapon stat; each shot hits a given enemy once).
 - **boomerang** — flies out to `range`, then arcs back to the player, hitting enemies on both legs.
   Its evolution is the reference **behavioral** evolution: it stops returning and instead **ricochets
-  to the nearest not-yet-hit enemy**, up to 5 bounces (prioritizing un-bounced targets).
+  to the nearest not-yet-hit enemy within range**, up to 3 bounces (prioritizing un-bounced targets),
+  and despawns once it hits that cap or no enemy is nearby.
 - **aura** — a persistent field around the player that pulses every `cooldown`, damaging all enemies
   within `range` (an AOE / melee archetype; rendered as a translucent ring that flashes on pulse).
 - **orbit** — wards that perpetually circle the player, damaging enemies they touch (re-hitting the

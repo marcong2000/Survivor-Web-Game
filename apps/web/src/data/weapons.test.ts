@@ -67,6 +67,6 @@ describe("weapon catalogue", () => {
 
   it("the boomerang has a behavioral (ricochet) evolution", () => {
     expect(WEAPONS.boomerang.behavior).toBe("boomerang");
-    expect(WEAPONS.boomerang.evolution?.ricochetBounces).toBe(5);
+    expect(WEAPONS.boomerang.evolution?.ricochetBounces).toBe(3);
   });
 });
